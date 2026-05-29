@@ -40,6 +40,29 @@ def extract_text_with_positions(pdf_path: str) -> list[dict]:
     return results
 
 
+def is_scanned_pdf(pdf_path: str, min_chars: int = 20) -> bool:
+    """
+    Returns True if the PDF appears to be a scanned image rather than a
+    digital/vector drawing.
+
+    A scanned PDF contains no extractable text — just pixel images.
+    We check by counting total characters across all pages. If fewer than
+    min_chars are found, it's almost certainly a scanned document.
+
+    min_chars=20 is a conservative threshold — even the simplest digital
+    drawing title block will have far more than 20 characters.
+    """
+    doc = fitz.open(pdf_path)
+    total_chars = 0
+    for page in doc:
+        total_chars += len(page.get_text("text").strip())
+        if total_chars >= min_chars:
+            doc.close()
+            return False
+    doc.close()
+    return total_chars < min_chars
+
+
 def find_component_instances(
     pdf_path: str,
     search_code: Optional[str] = None
@@ -69,6 +92,23 @@ def find_component_instances(
     # This is what appears next to the truncated "LD" on the same line.
     CODE_TAIL_PATTERN = re.compile(r'^\d{1,4}[-/]')
 
+    # Common Swedish drawing abbreviations that appear in title blocks, room labels,
+    # and signature fields. These should never be flagged as truncated component codes
+    # regardless of what text appears nearby on the same line.
+    DRAWING_ABBREVIATION_BLOCKLIST = {
+        # Signature/role abbreviations
+        "K", "AK", "PS", "A", "E", "VVS", "VS", "BR", "EL", "ELC",
+        # Single letters that are never component codes on their own
+        "U", "T", "F", "G", "H", "I", "J", "M", "N", "O", "P",
+        "Q", "R", "S", "W", "X", "Y", "Z",
+        # Room type abbreviations
+        "WC", "RWC", "ST", "HWC", "KÖK", "KK", "TV",
+        # Drawing/document abbreviations
+        "NR", "BET", "REV", "ANT", "SIGN", "DATUM", "SKALA",
+        # Compass/direction
+        "NO", "NV", "SO", "SV",
+    }
+
     # Y-axis proximity threshold (PDF points) to detect same-line fragments
     SAME_LINE_THRESHOLD = 5
 
@@ -94,6 +134,9 @@ def find_component_instances(
         # same line — meaning something like "02-200/1100" sits right next to it.
         # This avoids false warnings for normal abbreviations like "WC", "ST" etc.
         elif re.match(r'^[A-Z]{1,4}$', text):
+            # Skip known drawing abbreviations — they are never component codes
+            if text in DRAWING_ABBREVIATION_BLOCKLIST:
+                continue
             same_line = [
                 e for e in all_text_elements
                 if e is not element
