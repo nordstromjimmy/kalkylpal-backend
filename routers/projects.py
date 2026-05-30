@@ -154,3 +154,34 @@ def delete_project(project_id: int, db: Session = Depends(get_db)):
     db.delete(project)
     db.commit()
     return {"deleted": True, "project_id": project_id}
+
+
+@router.delete("/{project_id}/clear-data")
+def clear_project_data(project_id: int, db: Session = Depends(get_db)):
+    """
+    Clears all scan results and manual items for every drawing in the project.
+    Also removes the stored batch result.
+    Does NOT delete the drawings themselves or their PDF files.
+    """
+    from models.drawing import Drawing, ManualItem
+
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    drawing_ids = [d.id for d in project.drawings]
+
+    if drawing_ids:
+        db.query(ComponentInstance).filter(
+            ComponentInstance.drawing_id.in_(drawing_ids)
+        ).delete(synchronize_session=False)
+        db.query(ManualItem).filter(
+            ManualItem.drawing_id.in_(drawing_ids)
+        ).delete(synchronize_session=False)
+
+    db.query(ProjectBatchResult).filter(
+        ProjectBatchResult.project_id == project_id
+    ).delete(synchronize_session=False)
+
+    db.commit()
+    return {"cleared": True, "project_id": project_id, "drawings_cleared": len(drawing_ids)}

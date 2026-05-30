@@ -112,15 +112,18 @@ def scan_drawing(
             ))
     db.commit()
 
-    # Only return warnings relevant to the search code.
-    # If searching for "TD201", warnings about "LD" in other parts of the
-    # drawing are not actionable and shouldn't show up.
+    # Filter warnings to only those relevant to the search code.
+    # A warning is relevant if the fragment and search overlap in either direction:
+    #   - "LD102".startswith("LD") → True  → show when searching LD102
+    #   - "TD201".startswith("LD") → False → hide when searching TD201
+    # Without a search_code (scan all), all warnings are returned.
     all_warnings = result["warnings"]
     if search_code:
         search_upper = search_code.upper()
         relevant_warnings = [
             w for w in all_warnings
-            if w["fragment"].upper().startswith(search_upper)
+            if search_upper.startswith(w["fragment"].upper())
+            or w["fragment"].upper().startswith(search_upper)
         ]
     else:
         relevant_warnings = all_warnings
