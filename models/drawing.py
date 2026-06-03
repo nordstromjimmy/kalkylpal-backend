@@ -14,6 +14,12 @@ class Project(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=False)
     description = Column(String, nullable=True)
+    client = Column(String, nullable=True)
+    project_number = Column(String, nullable=True)
+    location = Column(String, nullable=True)
+    tender_deadline = Column(String, nullable=True)
+    contact_person = Column(String, nullable=True)
+    notes = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     drawings = relationship("Drawing", back_populates="project")

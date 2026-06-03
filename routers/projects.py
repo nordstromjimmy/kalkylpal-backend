@@ -18,6 +18,16 @@ class ProjectCreate(BaseModel):
     name: str
     description: str | None = None
 
+class ProjectUpdate(BaseModel):
+    name: str | None = None
+    description: str | None = None
+    client: str | None = None
+    project_number: str | None = None
+    location: str | None = None
+    tender_deadline: str | None = None
+    contact_person: str | None = None
+    notes: str | None = None
+
 
 @router.post("/")
 def create_project(payload: ProjectCreate, db: Session = Depends(get_db)):
@@ -46,12 +56,41 @@ def get_project(project_id: int, db: Session = Depends(get_db)):
         "id": project.id,
         "name": project.name,
         "description": project.description,
+        "client": project.client,
+        "project_number": project.project_number,
+        "location": project.location,
+        "tender_deadline": project.tender_deadline,
+        "contact_person": project.contact_person,
+        "notes": project.notes,
+        "created_at": project.created_at,
         "drawings": [
             {"id": d.id, "filename": d.filename, "uploaded_at": d.uploaded_at}
             for d in project.drawings
         ]
     }
 
+
+@router.put("/{project_id}")
+def update_project(project_id: int, payload: ProjectUpdate, db: Session = Depends(get_db)):
+    """Updates editable project info fields."""
+    project = db.query(Project).filter(Project.id == project_id).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(project, field, value)
+    db.commit()
+    db.refresh(project)
+    return {
+        "id": project.id,
+        "name": project.name,
+        "description": project.description,
+        "client": project.client,
+        "project_number": project.project_number,
+        "location": project.location,
+        "tender_deadline": project.tender_deadline,
+        "contact_person": project.contact_person,
+        "notes": project.notes,
+    }
 
 @router.get("/{project_id}/summary")
 def get_project_summary(project_id: int, db: Session = Depends(get_db)):
