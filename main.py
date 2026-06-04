@@ -22,11 +22,15 @@ Then visit:
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+load_dotenv()  # Load .env file so ANTHROPIC_API_KEY is available via os.getenv()
 
 from database import engine, Base
-import models.drawing  # Import so SQLAlchemy sees the models and creates tables
+import models.drawing
 
 from routers import drawings, projects
+from routers import chat
 
 # Create the FastAPI app
 app = FastAPI(
@@ -42,22 +46,22 @@ app = FastAPI(
 # In production, replace "*" with your actual frontend domain.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:3000",
+        "https://kalkylpal.se",
+        "https://www.kalkylpal.se",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Create all database tables.
-# SQLAlchemy reads our model classes and creates the tables if they don't exist.
-# This is safe to run every time — it only creates tables that are missing.
 Base.metadata.create_all(bind=engine)
 
-# Register routers.
-# Each router handles a group of related endpoints.
-# The router's own prefix (/drawings, /projects) is set inside the router file.
 app.include_router(projects.router)
 app.include_router(drawings.router)
+app.include_router(chat.router)
 
 
 @app.get("/")

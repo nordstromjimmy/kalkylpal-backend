@@ -21,6 +21,7 @@ class Project(Base):
     contact_person = Column(String, nullable=True)
     notes = Column(String, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
+    chat_messages = relationship("ChatMessage", back_populates="project")
 
     drawings = relationship("Drawing", back_populates="project")
     batch_result = relationship("ProjectBatchResult", back_populates="project", uselist=False)
@@ -90,3 +91,16 @@ class ManualItem(Base):
 
     drawing_id = Column(Integer, ForeignKey("drawings.id"), nullable=False)
     drawing = relationship("Drawing", back_populates="manual_items")
+
+
+class ChatMessage(Base):
+    """A single message in a project's AI chat history."""
+    __tablename__ = "chat_messages"
+
+    id = Column(Integer, primary_key=True, index=True)
+    project_id = Column(Integer, ForeignKey("projects.id"), nullable=False)
+    role = Column(String, nullable=False)    # "user" | "assistant"
+    content = Column(Text, nullable=False)
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+
+    project = relationship("Project", back_populates="chat_messages")
