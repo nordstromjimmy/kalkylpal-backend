@@ -14,17 +14,13 @@ class LoginRequest(BaseModel):
 
 @router.post("/login")
 def login(payload: LoginRequest):
-    """
-    Validates credentials against ADMIN_USERNAME and ADMIN_PASSWORD from .env.
-    Returns a signed JWT on success.
-    """
     admin_username = os.getenv("ADMIN_USERNAME", "")
     admin_password = os.getenv("ADMIN_PASSWORD", "")
 
     if not admin_username or not admin_password:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Server auth not configured — set ADMIN_USERNAME and ADMIN_PASSWORD in .env",
+            detail="Server auth error",
         )
 
     if payload.username != admin_username or payload.password != admin_password:
