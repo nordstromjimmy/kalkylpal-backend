@@ -33,6 +33,15 @@ class ManualItemCreate(BaseModel):
     x1: Optional[float] = None
     y1: Optional[float] = None
 
+class BoxCoord(BaseModel):
+    x0: float
+    y0: float
+    x1: float
+    y1: float
+
+class AnnotatedPDFRequest(BaseModel):
+    boxes: list[BoxCoord]
+
 
 # ── Upload ────────────────────────────────────────────────────────────────────
 
@@ -271,6 +280,56 @@ def clear_drawing_data(drawing_id: int, db: Session = Depends(get_db)):
     db.commit()
 
     return {"cleared": True, "drawing_id": drawing_id}
+
+
+# ── Annotated PDF download ────────────────────────────────────────────────────
+
+@router.post("/{drawing_id}/page/{page_number}/annotated-pdf")
+def get_annotated_pdf(
+    drawing_id: int,
+    page_number: int,
+    payload: AnnotatedPDFRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Returns a single PDF page with highlight boxes drawn as vector annotations.
+    Uses the original PDF (vector) rather than rasterising to an image,
+    keeping file size close to the original.
+    """
+    import fitz
+
+    drawing = db.query(Drawing).filter(Drawing.id == drawing_id).first()
+    if not drawing:
+        raise HTTPException(status_code=404, detail="Drawing not found")
+    if not os.path.exists(drawing.file_path):
+        raise HTTPException(status_code=404, detail="PDF file not found on disk")
+
+    doc = fitz.open(drawing.file_path)
+    page = doc[page_number - 1]
+
+    # Draw amber highlight rectangles directly on the page (vector, not raster)
+    for box in payload.boxes:
+        rect = fitz.Rect(box.x0, box.y0, box.x1, box.y1)
+        page.draw_rect(
+            rect,
+            color=(0.96, 0.65, 0.14),   # amber stroke
+            fill=(0.96, 0.65, 0.14),    # amber fill
+            fill_opacity=0.18,
+            width=1.5,
+        )
+
+    # Extract just this page as a new single-page PDF
+    out = fitz.open()
+    out.insert_pdf(doc, from_page=page_number - 1, to_page=page_number - 1)
+    pdf_bytes = out.tobytes(deflate=True)
+    doc.close()
+    out.close()
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="ritning_{page_number}_markerad.pdf"'},
+    )
 
 
 # ── Image / info endpoints ────────────────────────────────────────────────────
