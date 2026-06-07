@@ -6,3 +6,5 @@ python-multipart==0.0.9
 aiofiles==23.2.1
 anthropic
 python-dotenv
+python-jose[cryptography]
+passlib[bcrypt]

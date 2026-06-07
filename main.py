@@ -1,49 +1,18 @@
-"""
-main.py — The entry point for the FastAPI application.
-
-This file:
-1. Creates the FastAPI app instance
-2. Sets up CORS (so the React frontend can talk to this backend)
-3. Creates database tables
-4. Registers all routers
-5. Defines a health check endpoint
-
-To start the server, run:
-    uvicorn main:app --reload
-
-    main = this file (main.py)
-    app = the FastAPI instance below
-    --reload = auto-restart when you save changes (dev only)
-
-Then visit:
-    http://localhost:8000/docs  ← interactive API documentation (Swagger UI)
-    http://localhost:8000       ← health check
-"""
-
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
-load_dotenv()  # Load .env file so ANTHROPIC_API_KEY is available via os.getenv()
+load_dotenv()
 
 from database import engine, Base
 import models.drawing
 
-from routers import drawings, projects
-from routers import chat
+from routers import drawings, projects, chat
+from routers import auth as auth_router
+from services.auth import get_current_user
 
-# Create the FastAPI app
-app = FastAPI(
-    title="VVS Component Detector",
-    description="API for detecting and counting VVS components in PDF drawings",
-    version="0.1.0"
-)
+app = FastAPI(title="KalkylPal API", version="1.0.0")
 
-# CORS = Cross-Origin Resource Sharing.
-# Browsers block requests from one domain to another by default.
-# Our React frontend (localhost:5173) talks to our backend (localhost:8000).
-# These are different "origins", so we need to explicitly allow it.
-# In production, replace "*" with your actual frontend domain.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -59,16 +28,44 @@ app.add_middleware(
 
 Base.metadata.create_all(bind=engine)
 
-app.include_router(projects.router)
-app.include_router(drawings.router)
-app.include_router(chat.router)
+# Auth router — no protection needed (login is the entry point)
+app.include_router(auth_router.router)
+
+# All other routers require a valid JWT
+# Image endpoint is excluded via a public sub-router (see drawings.py)
+app.include_router(projects.router, dependencies=[Depends(get_current_user)])
+app.include_router(drawings.router, dependencies=[Depends(get_current_user)])
+app.include_router(chat.router, dependencies=[Depends(get_current_user)])
+
+# Public image endpoint (can't send auth headers from <img src>)
+from fastapi import Query
+from fastapi.responses import Response
+from sqlalchemy.orm import Session
+from database import get_db
+from models.drawing import Drawing
+from services.pdf_parser import get_pdf_page_as_image
+import os
+
+@app.get("/public/drawings/{drawing_id}/page/{page_number}/image")
+def get_page_image_public(
+    drawing_id: int,
+    page_number: int,
+    dpi: int = Query(150, ge=72, le=300),
+    db: Session = Depends(get_db)
+):
+    """Public image endpoint — used by <img src> which cannot send auth headers."""
+    drawing = db.query(Drawing).filter(Drawing.id == drawing_id).first()
+    if not drawing:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Drawing not found")
+    try:
+        image_bytes = get_pdf_page_as_image(drawing.file_path, page_number, dpi)
+    except Exception as e:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=400, detail=str(e))
+    return Response(content=image_bytes, media_type="image/png")
 
 
 @app.get("/")
 def health_check():
-    """
-    Simple health check endpoint.
-    If this returns 200 OK, the server is running.
-    Useful later for deployment monitoring.
-    """
-    return {"status": "ok", "app": "VVS Component Detector", "version": "0.1.0"}
+    return {"status": "ok", "app": "KalkylPal", "version": "1.0.0"}
