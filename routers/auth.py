@@ -1,10 +1,3 @@
-"""
-routers/auth.py — Authentication endpoints.
-
-POST /auth/login  — validates credentials, returns JWT
-GET  /auth/me     — returns current user info (requires token)
-"""
-
 import os
 from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel

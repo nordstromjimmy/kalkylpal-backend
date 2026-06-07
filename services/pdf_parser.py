@@ -1,7 +1,3 @@
-"""
-services/pdf_parser.py — The core PDF text extraction logic.
-"""
-
 import fitz
 import re
 from typing import Optional

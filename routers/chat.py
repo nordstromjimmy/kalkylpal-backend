@@ -1,10 +1,3 @@
-"""
-routers/chat.py — AI chat endpoints for VVS assistant.
-
-Uses Claude claude-sonnet-4-20250514 with web search to answer VVS-related questions.
-History is persisted per project in the chat_messages table.
-"""
-
 import os
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel

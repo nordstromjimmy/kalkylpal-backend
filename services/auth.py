@@ -1,10 +1,3 @@
-"""
-services/auth.py — JWT authentication logic.
-
-Single hardcoded admin user loaded from .env.
-Tokens are signed HS256 JWTs, valid for 7 days.
-"""
-
 import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional

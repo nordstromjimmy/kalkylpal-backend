@@ -1,7 +1,3 @@
-"""
-routers/drawings.py — All HTTP endpoints related to drawings.
-"""
-
 import os
 import uuid
 from pathlib import Path

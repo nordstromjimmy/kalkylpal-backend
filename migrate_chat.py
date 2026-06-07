@@ -1,11 +1,3 @@
-"""
-migrate_chat.py — Run once to create the chat_messages table.
-
-Usage:
-    cd backend
-    python migrate_chat.py
-"""
-
 import sqlite3
 from pathlib import Path
 

@@ -1,7 +1,3 @@
-"""
-routers/projects.py — HTTP endpoints for managing projects.
-"""
-
 import json
 from fastapi import APIRouter, Depends, HTTPException, Body
 from fastapi.responses import Response

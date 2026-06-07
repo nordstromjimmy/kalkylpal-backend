@@ -1,11 +1,3 @@
-"""
-migrate_project_fields.py — Run once to add new project info columns.
-
-Usage:
-    cd backend
-    python migrate_project_fields.py
-"""
-
 import sqlite3
 from pathlib import Path
 
